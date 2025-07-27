@@ -14,9 +14,17 @@ import time
 from litellm import acompletion
 import litellm
 
-os.environ["AZURE_API_KEY"] = "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI"
-os.environ["AZURE_API_BASE"] = "https://ai-mateo5227ai919927469639.openai.azure.com"
-os.environ["AZURE_API_VERSION"] = "2024-12-01-preview"
+# Load environment variables
+load_dotenv()
+
+# Azure OpenAI Configuration from environment variables
+AZURE_API_KEY = os.getenv("AZURE_API_KEY", "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI")
+AZURE_API_BASE = os.getenv("AZURE_API_BASE", "https://ai-mateo5227ai919927469639.openai.azure.com")
+AZURE_API_VERSION = os.getenv("AZURE_API_VERSION", "2024-12-01-preview")
+
+os.environ["AZURE_API_KEY"] = AZURE_API_KEY
+os.environ["AZURE_API_BASE"] = AZURE_API_BASE
+os.environ["AZURE_API_VERSION"] = AZURE_API_VERSION
 
 # Configure logging
 logging.basicConfig(
@@ -26,14 +34,27 @@ logging.basicConfig(
 )
 logging.getLogger('twilio').setLevel(logging.WARNING)
 
+# Load environment variables after logging setup
 load_dotenv()
+
 app = FastAPI()
-openai_client = AsyncAzureOpenAI(api_key="3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI",
-                                 azure_endpoint="https://ai-mateo5227ai919927469639.openai.azure.com/",
-                                 api_version="2024-12-01-preview")
-twilio_client = Client("AC50eb788caaafa637df08298a282828b3","38557d96c15ebf7f2d20401da2d84c08")
-music_url = "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/ringtone-02-133354.mp3"
-wait_url = "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/mixkit-marimba-ringtone-1359.wav"
+
+# Twilio Configuration from environment variables
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "AC50eb788caaafa637df08298a282828b3")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "38557d96c15ebf7f2d20401da2d84c08")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "+14432251592")
+
+# Audio URLs from environment variables
+music_url = os.getenv("MUSIC_URL", "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/ringtone-02-133354.mp3")
+wait_url = os.getenv("WAIT_URL", "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/mixkit-marimba-ringtone-1359.wav")
+
+# Initialize clients with environment variables
+openai_client = AsyncAzureOpenAI(
+    api_key=AZURE_API_KEY,
+    azure_endpoint=AZURE_API_BASE + "/",
+    api_version=AZURE_API_VERSION
+)
+twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # Session management for translation pairs
 # Translation session management
@@ -67,9 +88,9 @@ async def translate_text_streaming(text: str, source_lang: str = "es-ES", target
     # logging.info(f"Translating text: {text} from {source_lang} to {target_lang}")
     stream = await acompletion(
         model="azure/gpt-4.1-nano",
-        api_base = "https://ai-mateo5227ai919927469639.openai.azure.com/",
-        api_version = "2024-12-01-preview",
-        api_key = "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI",
+        api_base=AZURE_API_BASE + "/",
+        api_version=AZURE_API_VERSION,
+        api_key=AZURE_API_KEY,
         messages=messages,
         stream=True,
         temperature=0.3,  # Lower temperature for more consistent translations
@@ -481,6 +502,26 @@ async def call_form():
     """Serve HTML form for initiating translation calls"""
     return FileResponse("start.html")
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "timestamp": time.time(),
+        "service": "pgs-call-translate",
+        "version": "1.0.0"
+    }
+
+@app.get("/status")
+async def status():
+    """Status endpoint with basic system information"""
+    return {
+        "status": "running",
+        "active_sessions": len(translation_sessions),
+        "timestamp": time.time(),
+        "service": "pgs-call-translate"
+    }
+
 @app.post("/initiate-call")
 async def initiate_call(request: Request):
     """Handle form submission to initiate translation calls"""
@@ -503,7 +544,7 @@ async def initiate_call(request: Request):
         )
 
     # Get Twilio phone number from environment
-    twilio_number = "+14432251592"
+    twilio_number = TWILIO_PHONE_NUMBER
     if not twilio_number:
         return HTMLResponse(
             content="<h1>Error: Twilio phone number not configured</h1><a href='/'>Go back</a>",
@@ -558,5 +599,8 @@ async def initiate_call(request: Request):
         )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    # Get host and port from environment variables
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8080"))
+    uvicorn.run(app, host=host, port=port)
 

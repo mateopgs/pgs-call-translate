@@ -1,34 +1,31 @@
 # ConversationRelay Translate - Real-Time Voice Translation for Phone Calls
 
-A real-time voice translation system built with FastAPI, Twilio, and OpenAI that enables seamless bidirectional voice conversations between speakers of different languages.
+A real-time voice translation system built with FastAPI, Twilio, and Azure OpenAI that enables seamless bidirectional voice conversations between speakers of different languages.
 
 ## Overview
 
-**ConversationRelay Translate** is a  real-time translation demo that bridges language barriers by providing instant voice-to-voice translation during phone calls. The system automatically creates translation sessions, manages WebSocket connections, and uses OpenAI's GPT-4 for high-quality translations.
+**ConversationRelay Translate** is a real-time translation service that bridges language barriers by providing instant voice-to-voice translation during phone calls. The system automatically creates translation sessions, manages WebSocket connections, and uses Azure OpenAI's GPT-4 for high-quality translations.
 
 ## Architecture
 
 ### Core Components
 
 1. **Translation Session Management**
-
    - `TranslationSession` class manages call pairs and WebSocket connections
    - Tracks source and target call SIDs, phone numbers, and languages
    - Maintains WebSocket connections for both callers
 
 2. **WebSocket Endpoints**
-
    - `/ws/source/{session_id}` - Handles source caller websocket
    - `/ws/target/{session_id}` - Handles target callee websocket
    - Real-time bidirectional voice processing
 
 3. **Voice Webhooks**
-
    - `/voice/source/{session_id}` - Outbound call handler for source language speaker
    - `/voice/target/{session_id}` - Outbound call handler for target language speaker
 
 4. **Translation Engine**
-   - Streaming translation using OpenAI GPT-4
+   - Streaming translation using Azure OpenAI GPT-4
    - Configurable source and target languages
    - Real-time token-by-token translation delivery
 
@@ -50,6 +47,7 @@ Source Caller → WebSocket → Translation Engine → WebSocket → Target Call
 - **Configurable Languages**: Environment-based language configuration
 - **Error Handling**: Comprehensive error handling and logging
 - **Scalable Architecture**: FastAPI-based async architecture
+- **Always On**: Deploy to Azure for 24/7 availability without ngrok
 
 ### Supported Languages
 
@@ -68,76 +66,124 @@ ConversationRelay supports any language pair available in Twilio's Speech-to-Tex
 - `ar-SA` Arabic
 
 **Default Configuration:**
-
 - **Source Language**: Defaults to `en-US` (English)
 - **Target Language**: Defaults to `de-DE` (German)
 
-## Installation and Setup
+## Deployment Options
 
-### 1. Install Dependencies:
+### Option 1: Azure App Service (Recommended)
+
+Deploy to Azure for production use without ngrok:
+
+1. **Quick Deploy with Script:**
+   ```bash
+   ./deploy-azure.sh
+   ```
+
+2. **Manual Azure CLI Deploy:**
+   ```bash
+   # See AZURE_DEPLOYMENT.md for detailed instructions
+   az group create --name pgs-call-translate-rg --location "East US"
+   az webapp create --name pgs-call-translate-unique --resource-group pgs-call-translate-rg --plan myplan --runtime "PYTHON:3.12"
+   ```
+
+3. **Deploy with ARM Template:**
+   ```bash
+   az deployment group create --resource-group pgs-call-translate-rg --template-file azure-deploy.json
+   ```
+
+See [AZURE_DEPLOYMENT.md](./AZURE_DEPLOYMENT.md) for complete deployment guide.
+
+### Option 2: Fly.io
+
+Use the existing Fly.io configuration:
 
 ```bash
-uv sync
+flyctl deploy
 ```
 
-### 2. Configure Environment:
+### Option 3: Local Development
 
-Create a .env file from the sample:
+For development and testing:
 
-```bash
-cp .env.sample .env    # Linux/Mac
-copy .env.sample .env  # Windows
-```
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-Then update the following variables with your actual values:
+2. **Configure Environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+
+3. **Run the Application:**
+   ```bash
+   python main.py
+   ```
+
+4. **Expose with ngrok (development only):**
+   ```bash
+   ngrok http 8080
+   ```
+
+## Environment Configuration
+
+Create a `.env` file (copy from `.env.example`):
 
 ```env
+# Azure OpenAI Configuration
+AZURE_API_KEY=your_azure_openai_api_key
+AZURE_API_BASE=https://your-instance.openai.azure.com
+AZURE_API_VERSION=2024-12-01-preview
+
 # Twilio Configuration
 TWILIO_ACCOUNT_SID=your_twilio_account_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_PHONE_NUMBER=your_twilio_phone_number
 
-# Target Configuration
-TARGET_PHONE_NUMBER=target_phone_number
-
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key
-
-# Language Configuration (Optional)
-SOURCE_LANGUAGE=en-US
-TARGET_LANGUAGE=de-DE
+# Server Configuration (optional)
+HOST=0.0.0.0
+PORT=8080
 ```
 
-### 3. Run the Application:
+## Production Setup
 
-```bash
-uv run  main.py
-```
+### 1. Deploy to Azure
+Use the provided deployment script or manual instructions in `AZURE_DEPLOYMENT.md`.
 
-### 4. Run Ngrok:
+### 2. Configure Twilio Webhooks
+Update your Twilio webhooks to use your Azure URL:
+- Replace: `https://your-ngrok-url.ngrok.io`
+- With: `https://your-app-name.azurewebsites.net`
 
-```bash
-ngrok http 8080
-```
-
-### 5. Open Your NGrok URL:
-
-IMPORTANT: Open the public URL given by Ngrok. The demo will not function properly if you open http://localhost:8080
+### 3. Monitor Health
+- Health check: `https://your-app-name.azurewebsites.net/health`
+- Status: `https://your-app-name.azurewebsites.net/status`
+- API docs: `https://your-app-name.azurewebsites.net/docs`
 
 ## Current Status
 
 **Phase 1**: ✅ Complete - Bidirectional real-time translation
-
 - Source-to-target translation
 - Target-to-source translation
 - Session management
 - WebSocket handling
 - Environment-based configuration
 - Web Interface: Browser-based translation interface
+- **Production Deploy**: Azure App Service deployment (replaces ngrok)
+
+## Security Features
+
+- ✅ Environment variable configuration (no hardcoded credentials)
+- ✅ Secure Azure deployment with managed secrets
+- ✅ Health monitoring endpoints
+- ✅ Always-on service without ngrok tunnels
 
 ## Future Enhancements
 
 - **Conference Calls**: Multiple participants with different languages
 - **Recording and Transcription**: Call recording with translated transcripts
 - **Mobile App**: Native mobile application
+- **Auto-scaling**: Automatic scaling based on demand
 

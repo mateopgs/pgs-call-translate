@@ -1,0 +1,152 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appName": {
+            "type": "string",
+            "defaultValue": "[concat('pgs-call-translate-', uniqueString(resourceGroup().id))]",
+            "metadata": {
+                "description": "Name of the App Service app"
+            }
+        },
+        "appServicePlanName": {
+            "type": "string",
+            "defaultValue": "[concat(parameters('appName'), '-plan')]",
+            "metadata": {
+                "description": "Name of the App Service Plan"
+            }
+        },
+        "sku": {
+            "type": "string",
+            "defaultValue": "B1",
+            "allowedValues": [
+                "B1",
+                "B2",
+                "B3",
+                "S1",
+                "S2",
+                "S3",
+                "P1",
+                "P2",
+                "P3"
+            ],
+            "metadata": {
+                "description": "SKU for the App Service Plan"
+            }
+        },
+        "azureApiKey": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Azure OpenAI API Key"
+            }
+        },
+        "azureApiBase": {
+            "type": "string",
+            "metadata": {
+                "description": "Azure OpenAI API Base URL"
+            }
+        },
+        "twilioAccountSid": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Twilio Account SID"
+            }
+        },
+        "twilioAuthToken": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Twilio Auth Token"
+            }
+        },
+        "twilioPhoneNumber": {
+            "type": "string",
+            "metadata": {
+                "description": "Twilio Phone Number"
+            }
+        }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2021-02-01",
+            "name": "[parameters('appServicePlanName')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "[parameters('sku')]"
+            },
+            "kind": "linux",
+            "properties": {
+                "reserved": true
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2021-02-01",
+            "name": "[parameters('appName')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]"
+            ],
+            "kind": "app,linux",
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+                "siteConfig": {
+                    "linuxFxVersion": "PYTHON|3.12",
+                    "alwaysOn": true,
+                    "appCommandLine": "python -m uvicorn main:app --host 0.0.0.0 --port 8000",
+                    "appSettings": [
+                        {
+                            "name": "AZURE_API_KEY",
+                            "value": "[parameters('azureApiKey')]"
+                        },
+                        {
+                            "name": "AZURE_API_BASE",
+                            "value": "[parameters('azureApiBase')]"
+                        },
+                        {
+                            "name": "AZURE_API_VERSION",
+                            "value": "2024-12-01-preview"
+                        },
+                        {
+                            "name": "TWILIO_ACCOUNT_SID",
+                            "value": "[parameters('twilioAccountSid')]"
+                        },
+                        {
+                            "name": "TWILIO_AUTH_TOKEN",
+                            "value": "[parameters('twilioAuthToken')]"
+                        },
+                        {
+                            "name": "TWILIO_PHONE_NUMBER",
+                            "value": "[parameters('twilioPhoneNumber')]"
+                        },
+                        {
+                            "name": "HOST",
+                            "value": "0.0.0.0"
+                        },
+                        {
+                            "name": "PORT",
+                            "value": "8000"
+                        },
+                        {
+                            "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
+                            "value": "true"
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "appServiceUrl": {
+            "type": "string",
+            "value": "[concat('https://', reference(resourceId('Microsoft.Web/sites', parameters('appName'))).defaultHostName)]"
+        },
+        "appName": {
+            "type": "string",
+            "value": "[parameters('appName')]"
+        }
+    }
+}
