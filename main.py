@@ -17,13 +17,30 @@ load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-AZURE_WEBSITE_HOSTNAME = "pgs-call-translate.azurewebsites.net"
+# Configuration constants
+AZURE_WEBSITE_HOSTNAME = os.getenv("AZURE_WEBSITE_HOSTNAME", "pgs-call-translate.azurewebsites.net")
+WAITING_MUSIC_URL = os.getenv("WAITING_MUSIC_URL", "https://example.com/waiting-music.mp3")
+RINGTONE_URL = os.getenv("RINGTONE_URL", "https://example.com/ringtone.mp3")
 
-azure_key = "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI"
-azure_base = "https://ai-mateo5227ai919927469639.openai.azure.com/"
-azure_version = "2024-12-01-preview"
-twilio_sid = "AC50eb788caaafa637df08298a282828b3"
-twilio_token = "38557d96c15ebf7f2d20401da2d84c08"
+# Azure OpenAI configuration
+azure_key = os.getenv("AZURE_OPENAI_KEY")
+azure_base = os.getenv("AZURE_OPENAI_ENDPOINT")
+azure_version = os.getenv("AZURE_OPENAI_VERSION", "2024-12-01-preview")
+
+# Twilio configuration
+twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
+twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
+twilio_phone_number = os.getenv("TWILIO_PHONE_NUMBER")
+
+if not all([azure_key, azure_base, twilio_sid, twilio_token, twilio_phone_number]):
+    logging.error("Missing required environment variables")
+    
+    # Set fallback values for development/testing when environment variables are missing
+    azure_key = azure_key or "fallback-azure-key"
+    azure_base = azure_base or "https://fallback.openai.azure.com/"
+    twilio_sid = twilio_sid or "fallback-twilio-sid"
+    twilio_token = twilio_token or "fallback-twilio-token"
+    twilio_phone_number = twilio_phone_number or "+1234567890"
 
 openai_client = AsyncAzureOpenAI(api_key=azure_key, azure_endpoint=azure_base, api_version=azure_version)
 twilio_client = Client(twilio_sid, twilio_token)
@@ -58,6 +75,26 @@ class TranslationSession:
         self.base_url = ""
         self.play_waiting_music = False
 
+def cleanup_session(session_id: str):
+    """Clean up a translation session by closing WebSockets and removing from sessions dict."""
+    session = translation_sessions.get(session_id)
+    if session:
+        try:
+            if session.source_websocket:
+                session.source_websocket.close()
+        except Exception as e:
+            logging.error(f"Error closing source websocket for session {session_id}: {e}")
+        
+        try:
+            if session.target_websocket:
+                session.target_websocket.close()
+        except Exception as e:
+            logging.error(f"Error closing target websocket for session {session_id}: {e}")
+        
+        # Remove session from dict
+        translation_sessions.pop(session_id, None)
+        logging.info(f"Cleaned up session {session_id}")
+
 @app.get("/api/status")
 async def status():
     return {
@@ -81,7 +118,8 @@ async def translate_stream(text: str, src: str, tgt: str):
         yield {"token": token, "type": "text", "last": False}
     yield {"token": "", "type": "text", "last": True}
 
-def twiml_response(ws_url: str, language: str, tts: str, voice: str = "") -> str:
+def generate_conversation_relay_twiml(ws_url: str, language: str, tts: str, voice: str = "") -> str:
+    """Generate TwiML for ConversationRelay connection."""
     voice_attr = f' voice="{voice}"' if voice else ""
     stt = 'transcriptionProvider="google"' if language.startswith("ar-") else 'transcriptionProvider="deepgram"'
     return f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -131,39 +169,82 @@ async def create_outbound_call(request: Request, session_id: str, to_number: str
     voice = session.source_voice if source else session.target_voice
     twiml_url = get_base_url(request) + (f"/voice/source/{session_id}" if source else f"/voice/target/{session_id}")
 
-    twilio_client.calls.create(to=to_number, from_=os.getenv("TWILIO_PHONE_NUMBER"),
+    twilio_client.calls.create(to=to_number, from_=twilio_phone_number,
                                url=twiml_url, method="POST")
 
 @app.post("/voice/source/{session_id}")
 async def voice_source(request: Request, session_id: str):
     ws_url = get_ws_url(request, f"/ws/source/{session_id}")
     session = translation_sessions.get(session_id)
-    twiml = twiml_response(ws_url, session.source_language, session.source_tts_provider, session.source_voice)
+    twiml = generate_conversation_relay_twiml(ws_url, session.source_language, session.source_tts_provider, session.source_voice)
     return Response(content=twiml, media_type="text/xml")
 
 @app.post("/voice/target/{session_id}")
 async def voice_target(request: Request, session_id: str):
     ws_url = get_ws_url(request, f"/ws/target/{session_id}")
     session = translation_sessions.get(session_id)
-    twiml = twiml_response(ws_url, session.target_language, session.target_tts_provider, session.target_voice)
+    twiml = generate_conversation_relay_twiml(ws_url, session.target_language, session.target_tts_provider, session.target_voice)
     return Response(content=twiml, media_type="text/xml")
 
 @app.websocket("/ws/source/{session_id}")
 async def ws_source(websocket: WebSocket, session_id: str):
     await websocket.accept()
     session = translation_sessions.get(session_id)
+    if not session:
+        await websocket.close(code=1000, reason="Session not found")
+        return
+    
     session.source_websocket = websocket
-    # Espera y lógica de traducción simétrica...
-    await websocket.receive_text()  # placeholder
-    await websocket.close()
+    logging.info(f"Source WebSocket connected for session {session_id}")
+    
+    try:
+        while True:
+            data = await websocket.receive_json()
+            logging.info(f"Source received: {data}")
+            
+            # Handle speech recognition results
+            if data.get("type") == "speech_recognition" and data.get("text"):
+                text = data["text"]
+                # Translate from source to target language
+                if session.target_websocket:
+                    async for translation_chunk in translate_stream(text, session.source_language, session.target_language):
+                        await session.target_websocket.send_json(translation_chunk)
+                        
+    except Exception as e:
+        logging.error(f"Error in source WebSocket {session_id}: {e}")
+    finally:
+        logging.info(f"Source WebSocket disconnected for session {session_id}")
+        cleanup_session(session_id)
 
 @app.websocket("/ws/target/{session_id}")
 async def ws_target(websocket: WebSocket, session_id: str):
     await websocket.accept()
     session = translation_sessions.get(session_id)
+    if not session:
+        await websocket.close(code=1000, reason="Session not found")
+        return
+    
     session.target_websocket = websocket
-    await websocket.receive_text()  # placeholder
-    await websocket.close()
+    logging.info(f"Target WebSocket connected for session {session_id}")
+    
+    try:
+        while True:
+            data = await websocket.receive_json()
+            logging.info(f"Target received: {data}")
+            
+            # Handle speech recognition results
+            if data.get("type") == "speech_recognition" and data.get("text"):
+                text = data["text"]
+                # Translate from target to source language
+                if session.source_websocket:
+                    async for translation_chunk in translate_stream(text, session.target_language, session.source_language):
+                        await session.source_websocket.send_json(translation_chunk)
+                        
+    except Exception as e:
+        logging.error(f"Error in target WebSocket {session_id}: {e}")
+    finally:
+        logging.info(f"Target WebSocket disconnected for session {session_id}")
+        cleanup_session(session_id)
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
