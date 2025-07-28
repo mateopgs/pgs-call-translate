@@ -31,6 +31,7 @@ logging.getLogger('twilio').setLevel(logging.WARNING)
 
 # Obtener la URL base de Azure si está disponible
 AZURE_WEBSITE_HOSTNAME = os.environ.get('WEBSITE_HOSTNAME', "pgs-call-translate.azurewebsites.net")
+AZURE_WEBSITE_HOSTNAME = "pgs-call-translate.azurewebsites.net"
 
 def get_base_url(request):
     """Obtiene la URL base correcta ya sea en desarrollo local o en Azure"""
