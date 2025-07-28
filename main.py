@@ -3,9 +3,11 @@ import asyncio
 import json
 import uvicorn
 import logging
+import datetime
 from typing import Dict, Optional
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import Response
+from fastapi.middleware.cors import CORSMiddleware
 from openai import AsyncAzureOpenAI
 from dotenv import load_dotenv
 from twilio.rest import Client
@@ -14,6 +16,7 @@ import time
 from litellm import acompletion
 import litellm
 
+# Configuración de claves de API y endpoints
 os.environ["AZURE_API_KEY"] = "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI"
 os.environ["AZURE_API_BASE"] = "https://ai-mateo5227ai919927469639.openai.azure.com"
 os.environ["AZURE_API_VERSION"] = "2024-12-01-preview"
@@ -26,8 +29,34 @@ logging.basicConfig(
 )
 logging.getLogger('twilio').setLevel(logging.WARNING)
 
+# Obtener la URL base de Azure si está disponible
+AZURE_WEBSITE_HOSTNAME = os.environ.get('WEBSITE_HOSTNAME', "pgs-call-translate.azurewebsites.net")
+
+def get_base_url(request):
+    """Obtiene la URL base correcta ya sea en desarrollo local o en Azure"""
+    if AZURE_WEBSITE_HOSTNAME:
+        return f"https://{AZURE_WEBSITE_HOSTNAME}"
+    return f"https://{request.headers.get('host')}"
+
+def get_websocket_url(request, path):
+    """Genera URLs de WebSocket correctas para Azure o desarrollo local"""
+    base = get_base_url(request)
+    # Quitar 'https://' y construir URL WebSocket
+    return f"wss://{base.replace('https://', '')}{path}"
+
 load_dotenv()
 app = FastAPI()
+
+# Configurar CORS para permitir solicitudes desde cualquier origen
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Inicializar clientes
 openai_client = AsyncAzureOpenAI(api_key="3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI",
                                  azure_endpoint="https://ai-mateo5227ai919927469639.openai.azure.com/",
                                  api_version="2024-12-01-preview")
@@ -53,10 +82,26 @@ class TranslationSession:
         self.target_tts_provider = "ElevenLabs"  # Default target TTS provider
         self.target_voice = ""  # Default target voice
         self.host = None  # Request host for WebSocket URLs
+        self.base_url = None  # Base URL for API requests
         self.play_waiting_music = True  # Flag to control waiting music
 
 # Session storage
 translation_sessions: Dict[str, TranslationSession] = {}
+
+# Endpoint para verificar el estado de la aplicación
+@app.get("/api/status")
+async def check_status():
+    """Simple endpoint para verificar si el servidor está funcionando"""
+    return {
+        "status": "ok",
+        "service": "ConvRelay AI Translate",
+        "environment": "Azure App Service" if AZURE_WEBSITE_HOSTNAME else "Development",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "hostname": AZURE_WEBSITE_HOSTNAME or "local",
+        "version": "1.0.0",
+        "last_updated": "2025-07-27 23:57:35",
+        "updated_by": "marestrepohi"
+    }
 
 async def translate_text_streaming(text: str, source_lang: str = "es-ES", target_lang: str = "en-US"):
     """Streaming translation function using OpenAI"""
@@ -228,9 +273,14 @@ async def create_outbound_target_call(session_id: str, host: str, target_number:
 
         session = translation_sessions[session_id]
 
-        # Use the host passed from the incoming request
-        webhook_url = f"https://{host}/voice/target/{session_id}"
+        # Construir la URL del webhook utilizando la URL base correcta
+        base_url = f"https://{host}"
+        if AZURE_WEBSITE_HOSTNAME:
+            base_url = f"https://{AZURE_WEBSITE_HOSTNAME}"
+            
+        webhook_url = f"{base_url}/voice/target/{session_id}"
         logging.info(f"Webhook URL for target caller: {webhook_url}")
+        
         call = twilio_client.calls.create(
             to=target_number,
             from_=twilio_number,
@@ -256,9 +306,14 @@ async def create_outbound_source_call(session_id: str, host: str, source_number:
 
         session = translation_sessions[session_id]
 
-        # Use the host passed from the incoming request
-        webhook_url = f"https://{host}/voice/source/{session_id}"
+        # Construir la URL del webhook utilizando la URL base correcta
+        base_url = f"https://{host}"
+        if AZURE_WEBSITE_HOSTNAME:
+            base_url = f"https://{AZURE_WEBSITE_HOSTNAME}"
+            
+        webhook_url = f"{base_url}/voice/source/{session_id}"
         logging.info(f"Webhook URL for source caller: {webhook_url}")
+        
         call = twilio_client.calls.create(
             to=source_number,
             from_=twilio_number,
@@ -415,9 +470,8 @@ async def target_voice_webhook(request: Request, session_id: str):
 
     logging.info(f"Outbound target call from {from_number} to {to_number} with SID: {call_sid}, Status: {call_status}")
 
-    # Get the host from request headers
-    host = request.headers.get('host')
-    ws_url = f"wss://{host}/ws/target/{session_id}"
+    # Get the host from request headers and generate WebSocket URL
+    ws_url = get_websocket_url(request, f"/ws/target/{session_id}")
     logging.info(f"Target WebSocket URL: {ws_url}")
 
     # Get target language and TTS settings from session or defaults
@@ -451,9 +505,8 @@ async def source_voice_webhook(request: Request, session_id: str):
 
     logging.info(f"Outbound source call from {from_number} to {to_number} with SID: {call_sid}, Status: {call_status}")
 
-    # Get the host from request headers
-    host = request.headers.get('host')
-    ws_url = f"wss://{host}/ws/source/{session_id}"
+    # Get the host from request headers and generate WebSocket URL
+    ws_url = get_websocket_url(request, f"/ws/source/{session_id}")
     logging.info(f"Source WebSocket URL: {ws_url}")
 
     # Get source language and TTS settings from session or defaults
@@ -525,12 +578,14 @@ async def initiate_call(request: Request):
         session.target_tts_provider = target_tts_provider
         session.target_voice = target_voice
         session.host = request.headers.get('host')
+        session.base_url = get_base_url(request)  # Guardar la URL base completa
         session.play_waiting_music = play_waiting_music  # Set the flag
         translation_sessions[session_id] = session
 
         logging.info(f"Created manual translation session: {session_id}")
         logging.info(f"From: {from_number} ({source_language}) -> To: {to_number} ({target_language})")
         logging.info(f"Source TTS: {source_tts_provider}/{source_voice}, Target TTS: {target_tts_provider}/{target_voice}")
+        logging.info(f"Using base URL: {session.base_url}")
 
         # Create outbound calls to both parties
         await create_outbound_source_call(session_id, session.host, from_number, twilio_number)
@@ -545,7 +600,8 @@ async def initiate_call(request: Request):
                 "from_number": from_number,
                 "to_number": to_number,
                 "source_language": source_language,
-                "target_language": target_language
+                "target_language": target_language,
+                "server_url": session.base_url
             },
             status_code=200
         )
@@ -559,4 +615,3 @@ async def initiate_call(request: Request):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)
-
