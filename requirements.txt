@@ -3,3 +3,4 @@ twilio
 openai
 fastapi[all]
 python-dotenv
+uvicorn
