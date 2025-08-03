@@ -58,4 +58,4 @@ jobs:
         with:
           app-name: 'pgs-call-translate'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_6B7FE1C7D9884C71BF4EBCA619A01E1F }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B386C10146ED4CE2826802F3E501634E }}
