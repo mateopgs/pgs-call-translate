@@ -4,3 +4,6 @@ openai
 fastapi[all]
 python-dotenv
 uvicorn
+websockets
+python-multipart
+dotenv
