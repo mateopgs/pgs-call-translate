@@ -556,7 +556,3 @@ async def initiate_call(request: Request):
             content=f"<h1>Error: {str(e)}</h1><a href='/'>Go back</a>",
             status_code=500
         )
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
-
