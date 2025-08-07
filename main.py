@@ -31,7 +31,7 @@ app = FastAPI()
 openai_client = AsyncAzureOpenAI(api_key="3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI",
                                  azure_endpoint="https://ai-mateo5227ai919927469639.openai.azure.com/",
                                  api_version="2024-12-01-preview")
-twilio_client = Client("AC50eb788caaafa637df08298a282828b3","e560c676e702ee21c03801352c140491")
+twilio_client = Client("AC50eb788caaafa637df08298a282828b3","8ff3806f594c27072e68b5e8571f7eb4")
 music_url = "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/ringtone-02-133354.mp3"
 wait_url = "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/mixkit-marimba-ringtone-1359.wav"
 
