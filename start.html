@@ -5,23 +5,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <title>TraduceAI Call</title>
     <style>
-        html, body { height: 100%; }
+    /* Removed fixed height on html/body to avoid forcing scroll on short content */
         body {
             font-family: 'Poppins', Arial, sans-serif;
             margin: 0;
             padding: 0;
-            min-height: 100dvh;
-            background-color: #f5f5f5;
-            display: block;
-            overflow-y: auto; /* enable page scroll only when needed */
+            background-color: #ffffff;
+            display: block; /* normal flow to allow natural scrolling when content grows */
+            overflow-x: hidden; /* prevent accidental horizontal scrollbars */
+            scrollbar-gutter: stable both-edges; /* avoid layout shift when vertical scrollbar appears/disappears */
         }
         .container {
             background-color: white;
             max-width: clamp(340px, 95vw, 920px);
-            margin: 0 auto; /* remove outer vertical margin */
+            margin: 16px auto; /* fixed spacing to avoid fractional rounding overflow */
             padding: clamp(12px, 2vw, 24px);
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 10px rgba(128,128,128,0.15);
             overflow: visible; /* let page handle overflow */
         }
         h1 {
@@ -159,10 +159,12 @@
             .card { padding: 8px; }
             .form-group { margin-bottom: 10px; }
             button { margin-top: 10px; }
+            .container { margin-block: 8px; }
         }
         @media (max-height: 620px) {
             #call-logs { display: none; }
             .status-panel { margin: 8px 0; }
+            .container { margin-block: 6px; }
         }
     </style>
 </head>
@@ -332,7 +334,14 @@
             }, 5000);
         }
         
-        
+        // Dynamically toggle vertical scrollbar only when needed
+        function updateOverflow() {
+            try {
+                const needsScroll = document.documentElement.scrollHeight > window.innerHeight + 1;
+                document.body.style.overflowY = needsScroll ? 'auto' : 'hidden';
+            } catch {}
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('call-form');
             const submitBtn = document.getElementById('submit-btn');
@@ -351,6 +360,11 @@
                 if (saved.source_voice) document.getElementById('source_voice').value = saved.source_voice;
                 if (saved.target_voice) document.getElementById('target_voice').value = saved.target_voice;
             } catch {}
+
+            // Initialize overflow control and bind listeners
+            updateOverflow();
+            window.addEventListener('resize', updateOverflow, { passive: true });
+            document.querySelectorAll('details').forEach(d => d.addEventListener('toggle', updateOverflow));
             
             form.addEventListener('submit', async function(e) {
                 e.preventDefault(); 
@@ -428,6 +442,8 @@
                     submitBtn.textContent = 'Initiate Translation Call';
                     submitBtn.disabled = false;
                     form.classList.remove('loading');
+                    // Recompute overflow in case content changed
+                    updateOverflow();
                 }
             });
         });
