@@ -5,47 +5,63 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <title>TraduceAI Call</title>
     <style>
+        html, body { height: 100%; }
         body {
             font-family: 'Poppins', Arial, sans-serif;
-            max-width: 600px;
-            width: 90%;
-            margin: 50px auto;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            min-height: 100dvh;
             background-color: #f5f5f5;
+            display: block;
+            overflow-y: auto; /* enable page scroll only when needed */
         }
         .container {
             background-color: white;
-            padding: 30px;
+            max-width: clamp(340px, 95vw, 920px);
+            margin: 0 auto; /* remove outer vertical margin */
+            padding: clamp(12px, 2vw, 24px);
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            overflow: visible; /* let page handle overflow */
         }
         h1 {
             color: #333;
-            text-align: center;
-            margin-bottom: 30px;
+            margin: 8px 0 16px;
+            font-size: clamp(18px, 3.5vw, 26px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .brand {
+            display: block;
+            height: clamp(28px, 8vw, 46px);
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
         }
         .description {
             background-color: #f8f9fa;
             border-left: 4px solid #D8B8F1;
-            padding: 15px;
-            margin-bottom: 25px;
-            font-size: 16px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: clamp(13px, 2.5vw, 16px);
             line-height: 1.5;
             color: #333;
         }
         .description summary {
             cursor: pointer;
-            padding: 10px;
+            padding: 8px 6px;
             font-weight: bold;
             color: #9b59b6;
-            font-size: 18px;
-            margin-bottom: 10px;
+            font-size: clamp(15px, 3vw, 18px);
+            margin-bottom: 6px;
         }
         .description summary::-webkit-details-marker {
             color: #9b59b6;
         }
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: clamp(10px, 2vh, 16px);
         }
         label {
             display: block;
@@ -55,21 +71,23 @@
         }
         input, select {
             width: 100%;
-            padding: 10px;
+            padding: clamp(8px, 1.8vw, 10px);
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 16px;
+            font-size: clamp(14px, 2.6vw, 16px);
             box-sizing: border-box;
         }
         button {
             background-color: #9b59b6;
             color: white;
-            padding: 12px 30px;
+            padding: 12px 18px;
             border: none;
             border-radius: 5px;
-            font-size: 16px;
+            font-size: clamp(14px, 2.8vw, 16px);
+            font-family: 'Poppins', Arial, sans-serif;
             cursor: pointer;
             width: 100%;
+            margin-top: clamp(12px, 3vh, 24px);
         }
         button:hover {
             background-color: #7d3c98;
@@ -77,38 +95,79 @@
         .note {
             background-color: #e7f3ff;
             border: 1px solid #b3d9ff;
-            padding: 15px;
+            padding: 10px;
             border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 14px;
+            margin-bottom: 14px;
+            font-size: clamp(12px, 2.2vw, 14px);
         }
         .success-message {
             background-color: #d4edda;
             border: 1px solid #c3e6cb;
             color: #155724;
-            padding: 15px;
+            padding: 10px;
             border-radius: 5px;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
             display: none;
         }
         .error-message {
             background-color: #f8d7da;
             border: 1px solid #f5c6cb;
             color: #721c24;
-            padding: 15px;
+            padding: 10px;
             border-radius: 5px;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
             display: none;
         }
         .loading {
             opacity: 0.6;
             pointer-events: none;
         }
+        .status-panel {
+            background: #fff7e6;
+            border: 1px solid #ffe4b5;
+            color: #7a5d00;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 12px 0 8px;
+            display: none;
+        }
+        .status-panel code { font-weight: 600; }
+        .helper { color: #666; font-size: 12px; margin-top: 6px; }
+
+        .participants {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: clamp(8px, 2vw, 16px);
+        }
+        .card {
+            border: 1px solid #ddd;
+            padding: clamp(10px, 2vw, 15px);
+            border-radius: 8px;
+            background: #fff;
+        }
+        @media (min-width: 900px) {
+            .participants {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Fit layout on short viewports without page scroll */
+        @media (max-height: 700px) {
+            .description { display: none; }
+            .note { display: none; }
+            h1 { margin: 6px 0 10px; font-size: clamp(16px, 3vw, 20px); }
+            .card { padding: 8px; }
+            .form-group { margin-bottom: 10px; }
+            button { margin-top: 10px; }
+        }
+        @media (max-height: 620px) {
+            #call-logs { display: none; }
+            .status-panel { margin: 8px 0; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>TraduceAI Call</h1>
         
         <details class="description">
             <summary>How It Works</summary>
@@ -133,21 +192,28 @@
             <p><strong>Example:</strong> If Source is English and Target is Spanish, the English speaker will hear Spanish translations, and the Spanish speaker will hear English translations.</p>
         </details>
         
-        <!-- Success/Error Messages -->
-        <div id="success-message" class="success-message"></div>
-        <div id="error-message" class="error-message"></div>
+    <!-- Success/Error Messages -->
+    <div id="success-message" class="success-message" role="status" aria-live="polite"></div>
+    <div id="error-message" class="error-message" role="alert" aria-live="assertive"></div>
+
+    <!-- Session Status -->
+    <div id="status-panel" class="status-panel"></div>
         
         <div class="note">
             <strong>Note:</strong> Enter phone numbers in international format (e.g., +1234567890)
         </div>
 
         <form id="call-form">
-            <fieldset style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px;">
-                <legend style="font-weight: bold; padding: 0 10px;">Participant 1  (Source) Settings</legend>
+            <!-- Keep waiting music ON by default without exposing UI -->
+            <input type="hidden" name="play_waiting_music" value="on">
+            <div class="participants">
+            <fieldset class="card">
+                <legend style="font-weight: bold; padding: 0 6px;">Participant 1 (Source)</legend>
                 
                 <div class="form-group">
                     <label for="from_number">Phone Number:</label>
-                    <input type="tel" id="from_number" name="from_number" placeholder="+1234567890" required>
+                    <input type="tel" id="from_number" name="from_number" placeholder="+1234567890" inputmode="tel" pattern="^\+[1-9]\d{6,14}$" title="Use E.164 format e.g. +14155552671" required>
+                    <div class="helper">Must be in E.164 format (e.g., +14155552671)</div>
                 </div>
                 
                 <div class="form-group">
@@ -168,28 +234,31 @@
                         
                     </select>
                 </div>
-                
-                <div class="form-group">
-                    <label for="source_tts_provider">TTS Provider:</label>
-                    <select id="source_tts_provider" name="source_tts_provider" required>
-                        <option value="ElevenLabs">ElevenLabs</option>
-                        <option value="Google">Google</option>
-                        <option value="Amazon">Amazon</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="source_voice">Voice (optional):</label>
-                    <input type="text" id="source_voice" name="source_voice" placeholder="Enter voice ID (leave empty for default)">
-                </div>
+
+                <details class="form-group">
+                    <summary style="cursor: pointer; font-weight: 600; color: #9b59b6;">Settings</summary>
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="source_tts_provider">TTS Provider:</label>
+                        <select id="source_tts_provider" name="source_tts_provider" required>
+                            <option value="ElevenLabs">ElevenLabs</option>
+                            <option value="Google">Google</option>
+                            <option value="Amazon">Amazon</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="source_voice">Voice (optional):</label>
+                        <input type="text" id="source_voice" name="source_voice" placeholder="Enter voice ID (leave empty for default)">
+                    </div>
+                </details>
             </fieldset>
             
-            <fieldset style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px;">
-                <legend style="font-weight: bold; padding: 0 10px;">Participant 2  (Target) Settings</legend>
+            <fieldset class="card">
+                <legend style="font-weight: bold; padding: 0 6px;">Participant 2 (Target)</legend>
                 
                 <div class="form-group">
                     <label for="to_number">Phone Number:</label>
-                    <input type="tel" id="to_number" name="to_number" placeholder="+1234567890" required>
+                    <input type="tel" id="to_number" name="to_number" placeholder="+1234567890" inputmode="tel" pattern="^\+[1-9]\d{6,14}$" title="Use E.164 format e.g. +442071838750" required>
+                    <div class="helper">Must be in E.164 format (e.g., +442071838750)</div>
                 </div>
                 
                 <div class="form-group">
@@ -208,47 +277,40 @@
                         <option value="ar-SA">Arabic</option>
                     </select>
                 </div>
-                
-                <div class="form-group">
-                    <label for="target_tts_provider">TTS Provider:</label>
-                    <select id="target_tts_provider" name="target_tts_provider" required>
-                        <option value="ElevenLabs">ElevenLabs</option>
-                        <option value="Google">Google</option>
-                        <option value="Amazon">Amazon</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="target_voice">Voice (optional):</label>
-                    <input type="text" id="target_voice" name="target_voice" placeholder="Enter voice ID (leave empty for default)">
-                </div>
+
+                <details class="form-group">
+                    <summary style="cursor: pointer; font-weight: 600; color: #9b59b6;">Settings</summary>
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="target_tts_provider">TTS Provider:</label>
+                        <select id="target_tts_provider" name="target_tts_provider" required>
+                            <option value="ElevenLabs">ElevenLabs</option>
+                            <option value="Google">Google</option>
+                            <option value="Amazon">Amazon</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="target_voice">Voice (optional):</label>
+                        <input type="text" id="target_voice" name="target_voice" placeholder="Enter voice ID (leave empty for default)">
+                    </div>
+                </details>
             </fieldset>
-            
-            <fieldset style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px;">
-                <legend style="font-weight: bold; padding: 0 10px;">Audio Settings</legend>
-                
-                <div class="form-group">
-                    <label style="display: flex; justify-content: space-between; align-items: center; font-weight: normal; cursor: pointer;">
-                        <span>Play waiting music during translation</span>
-                        <input type="checkbox" id="play_waiting_music" name="play_waiting_music">
-                    </label>
-                </div>
-            </fieldset>
+            </div>
             
             <button type="submit" id="submit-btn">Initiate Translation Call</button>
         </form>
         
-        <!-- Call Logs Section moved to bottom -->
-        <div id="call-logs" style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #ddd;">
-            <h3>Recent Calls</h3>
-            <ul id="call-list">
+        <!-- Call Logs collapsed to save space -->
+        <details id="call-logs" class="card" style="margin-top: 16px;">
+            <summary style="cursor: pointer; font-weight: 600; color: #333;">Recent Calls</summary>
+            <ul id="call-list" style="margin-top: 10px;">
                 <!-- Logs will be temporary, session-only -->
             </ul>
-        </div>
+        </details>
     </div>
     
     <script>
-        // 显示消息函数
+    // Logo served from /public per request
+        // Display message helper
         function showMessage(message, isError = false) {
             const successDiv = document.getElementById('success-message');
             const errorDiv = document.getElementById('error-message');
@@ -274,6 +336,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('call-form');
             const submitBtn = document.getElementById('submit-btn');
+            const statusPanel = document.getElementById('status-panel');
+            const e164 = /^\+[1-9]\d{6,14}$/;
+
+            // Restore saved values
+            try {
+                const saved = JSON.parse(localStorage.getItem('traduceai-form') || '{}');
+                if (saved.from_number) document.getElementById('from_number').value = saved.from_number;
+                if (saved.to_number) document.getElementById('to_number').value = saved.to_number;
+                if (saved.source_language) document.getElementById('source_language').value = saved.source_language;
+                if (saved.target_language) document.getElementById('target_language').value = saved.target_language;
+                if (saved.source_tts_provider) document.getElementById('source_tts_provider').value = saved.source_tts_provider;
+                if (saved.target_tts_provider) document.getElementById('target_tts_provider').value = saved.target_tts_provider;
+                if (saved.source_voice) document.getElementById('source_voice').value = saved.source_voice;
+                if (saved.target_voice) document.getElementById('target_voice').value = saved.target_voice;
+            } catch {}
             
             form.addEventListener('submit', async function(e) {
                 e.preventDefault(); 
@@ -285,6 +362,21 @@
                 
                 try {
                     
+                    // Clean and validate numbers
+                    const fromEl = document.getElementById('from_number');
+                    const toEl = document.getElementById('to_number');
+                    fromEl.value = fromEl.value.replace(/\s|-/g, '');
+                    toEl.value = toEl.value.replace(/\s|-/g, '');
+
+                    if (!e164.test(fromEl.value)) {
+                        showMessage('Invalid source phone number. Use E.164, e.g., +14155552671', true);
+                        return;
+                    }
+                    if (!e164.test(toEl.value)) {
+                        showMessage('Invalid target phone number. Use E.164, e.g., +442071838750', true);
+                        return;
+                    }
+
                     const formData = new FormData(form);
                     
                     
@@ -297,7 +389,10 @@
                         const result = await response.json();
                         
                         
-                        showMessage(`Call success！session ID: ${result.session_id}`);
+                        showMessage(`Call started. Session ID: ${result.session_id}`);
+                        // Show session status
+                        statusPanel.style.display = 'block';
+                        statusPanel.innerHTML = `Session <code>${result.session_id}</code> created. Outbound calls will connect both parties shortly.`;
                         
                         
                         const fromNumber = formData.get('from_number');
@@ -305,6 +400,19 @@
                         const toNumber = formData.get('to_number');
                         const targetLanguage = formData.get('target_language');
                         addCallLog(fromNumber, sourceLanguage, toNumber, targetLanguage);
+                        
+                        // Persist selections
+                        localStorage.setItem('traduceai-form', JSON.stringify({
+                            from_number: fromNumber,
+                            to_number: toNumber,
+                            source_language: sourceLanguage,
+                            target_language: targetLanguage,
+                            source_tts_provider: formData.get('source_tts_provider'),
+                            target_tts_provider: formData.get('target_tts_provider'),
+                            source_voice: formData.get('source_voice'),
+                            target_voice: formData.get('target_voice'),
+                            play_waiting_music: formData.get('play_waiting_music') === 'off'
+                        }));
                         
                         
                         
@@ -341,20 +449,7 @@
                 callList.removeChild(callList.lastChild);
             }
         }
-        
-        // Handle form submission to add log
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('form');
-            form.addEventListener('submit', function(e) {
-                const fromNumber = document.getElementById('from_number').value;
-                const sourceLanguage = document.getElementById('source_language').value;
-                const toNumber = document.getElementById('to_number').value;
-                const targetLanguage = document.getElementById('target_language').value;
-                
-                // Add temporary log entry
-                addCallLog(fromNumber, sourceLanguage, toNumber, targetLanguage);
-            });
-        });
+        // Removed duplicate submit listener that caused duplicate log entries
     </script>
 </body>
 </html>

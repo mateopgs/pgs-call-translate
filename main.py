@@ -1,22 +1,17 @@
 import os
-import asyncio
 import json
 import uvicorn
 import logging
 from typing import Dict, Optional
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import Response
-from openai import AsyncAzureOpenAI
+from openai import AsyncAzureOpenAI,AsyncOpenAI
 from dotenv import load_dotenv
 from twilio.rest import Client
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, JSONResponse
 import time
 from litellm import acompletion
 import litellm
-
-os.environ["AZURE_API_KEY"] = "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI"
-os.environ["AZURE_API_BASE"] = "https://ai-mateo5227ai919927469639.openai.azure.com"
-os.environ["AZURE_API_VERSION"] = "2024-12-01-preview"
 
 # Configure logging
 logging.basicConfig(
@@ -26,12 +21,16 @@ logging.basicConfig(
 )
 logging.getLogger('twilio').setLevel(logging.WARNING)
 
+os.environ["AZURE_API_KEY"] = "3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI"
+os.environ["AZURE_API_BASE"] = "https://ai-mateo5227ai919927469639.openai.azure.com"
+os.environ["AZURE_API_VERSION"] = "2024-12-01-preview"
+
 load_dotenv()
 app = FastAPI()
 openai_client = AsyncAzureOpenAI(api_key="3T3EuIFcgBiqLGtRbSd9PywVHAKw2RsbnROSIdWCmhPdvkIPnfD0JQQJ99BDACHYHv6XJ3w3AAAAACOGONVI",
                                  azure_endpoint="https://ai-mateo5227ai919927469639.openai.azure.com/",
                                  api_version="2024-12-01-preview")
-twilio_client = Client("AC50eb788caaafa637df08298a282828b3","8ff3806f594c27072e68b5e8571f7eb4")
+twilio_client = Client("AC50eb788caaafa637df08298a282828b3","fbbb000c351758317d7c666e80d29b86")
 music_url = "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/ringtone-02-133354.mp3"
 wait_url = "https://pub-09065925c50a4711a49096e7dbee29ce.r2.dev/mixkit-marimba-ringtone-1359.wav"
 
@@ -58,7 +57,7 @@ class TranslationSession:
 # Session storage
 translation_sessions: Dict[str, TranslationSession] = {}
 
-async def translate_text_streaming(text: str, source_lang: str = "es-ES", target_lang: str = "en-US"):
+async def translate_text_streaming(text: str, source_lang: str = "en-US", target_lang: str = "de-DE"):
     """Streaming translation function using OpenAI"""
     messages = [
         {"role": "system", "content": f"You are a professional real-time translator. Translate the following {source_lang} text to {target_lang}. Provide only the translation, no explanations or additional text."},
@@ -556,3 +555,6 @@ async def initiate_call(request: Request):
             content=f"<h1>Error: {str(e)}</h1><a href='/'>Go back</a>",
             status_code=500
         )
+    
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8080)
