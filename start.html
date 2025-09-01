@@ -50,15 +50,15 @@
             color: #333;
         }
         .description summary {
-            cursor: pointer;
-            padding: 8px 6px;
-            font-weight: bold;
-            color: #9b59b6;
+                    cursor: pointer;
+                    padding: 8px 6px;
+                    font-weight: bold;
+                    color: #7c3aed;
             font-size: clamp(15px, 3vw, 18px);
             margin-bottom: 6px;
         }
         .description summary::-webkit-details-marker {
-            color: #9b59b6;
+                    color: #7c3aed;
         }
         .form-group {
             margin-bottom: clamp(10px, 2vh, 16px);
@@ -78,7 +78,7 @@
             box-sizing: border-box;
         }
         button {
-            background-color: #9b59b6;
+            background-color: #7c3aed;
             color: white;
             padding: 12px 18px;
             border: none;
@@ -89,8 +89,11 @@
             width: 100%;
             margin-top: clamp(12px, 3vh, 24px);
         }
+        #submit-btn {
+            font-weight: bold;
+        }
         button:hover {
-            background-color: #7d3c98;
+            background-color: #5a1fa9;
         }
         .note {
             background-color: #e7f3ff;
@@ -206,8 +209,8 @@
         </div>
 
         <form id="call-form">
-            <!-- Keep waiting music ON by default without exposing UI -->
-            <input type="hidden" name="play_waiting_music" value="on">
+            <!-- Keep waiting music OFF by default without exposing UI -->
+            <input type="hidden" name="play_waiting_music" value="off">
             <div class="participants">
             <fieldset class="card">
                 <legend style="font-weight: bold; padding: 0 6px;">Participant 1 (Source)</legend>
